@@ -1,5 +1,5 @@
 from flask import Flask, render_template, flash, redirect, url_for, session, request, logging
-from data import Articles
+#from data import Articles
 from flask_sqlalchemy import SQLAlchemy
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
 from passlib.hash import sha256_crypt
@@ -8,7 +8,7 @@ import datetime
 
 app = Flask(__name__)
 
-Articles = Articles()
+#Articles = Articles()
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://ktsubaki:@localhost:5432/pythonflaskapp'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -22,7 +22,7 @@ class User(db.Model):
     username = db.Column(db.String(30))
     password = db.Column(db.String(100))
     email = db.Column(db.String(100))
-    register_date = db.Column(db.DateTime)
+    register_date = db.Column(db.DateTime())
 
     def __init__(self, name, username, password, email):
         self.name = name
@@ -30,6 +30,7 @@ class User(db.Model):
         self.password = password
         self.email = email
         self.register_date = datetime.datetime.now()
+
 
 
 class RegisterForm(Form):
@@ -46,17 +47,27 @@ class RegisterForm(Form):
 def index():
     return render_template('home.html')
 
+
 @app.route('/about')
 def about():
     return render_template('about.html')
 
+
 @app.route('/articles')
 def articles():
-    return render_template('articles.html', articles = Articles)
+    result = db.session.query(Article).all()
+    if len(result) == 0:
+        msg = 'No Article Found'
+        return render_template('articles.html', msg=msg)
+    else:
+        return render_template('articles.html', articles=result)
+
 
 @app.route('/article/<string:id>')
 def article(id):
-    return render_template('article.html', id = id)
+    article = db.session.query(Article).filter(Article.id==id).first()
+    return render_template('article.html', article=article)
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -115,6 +126,7 @@ def is_logged_in(f):
     return wrap
 
 @app.route('/logout')
+@is_logged_in
 def logout():
     session.clear()
     flash('You are now logged out', 'success')
@@ -123,7 +135,49 @@ def logout():
 @app.route('/dashboard')
 @is_logged_in
 def dashboard():
-    return render_template('dashboard.html')
+    result = db.session.query(Article).all()
+    if len(result) == 0:
+        msg = 'No Article Found'
+        return render_template('dashboard.html', msg=msg)
+    else:
+        return render_template('dashboard.html', articles=result)
+
+
+class Article(db.Model):
+    __tablename__ = 'articles'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255))
+    author = db.Column(db.String(100))
+    body = db.Column(db.Text())
+    create_date = db.Column(db.DateTime())
+
+    def __init__(self, title, author, body, create_date):
+        self.title = title
+        self.author = author
+        self.body = body
+        self.create_date = create_date
+
+
+class ArticleForm(Form):
+    title = StringField('Title', [validators.Length(min=1, max=200)])
+    body = TextAreaField('Body', [validators.Length(min=30)])
+
+
+@app.route('/add_article', methods=['GET', 'POST'])
+@is_logged_in
+def add_article():
+    form = ArticleForm(request.form)
+    if request.method == 'POST' and form.validate():
+        title = form.title.data
+        body = form.body.data
+
+        data = Article(title, session['username'], body, datetime.datetime.now())
+        db.session.add(data)
+        db.session.commit()
+        flash('Article created', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('add_article.html', form = form)
+
 
 if __name__ == '__main__':
     app.debug = True
