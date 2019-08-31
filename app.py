@@ -199,6 +199,16 @@ def edit_article(id):
     return render_template('edit_article.html', form = form)
 
 
+@app.route('/delete_article/<string:id>', methods=['POST'])
+@is_logged_in
+def delete_article(id):
+    article = db.session.query(Article).filter(Article.id == id).one()
+    db.session.delete(article)
+    db.session.commit()
+    flash('Article deleted', 'success')
+    return redirect(url_for('dashboard'))
+
+
 if __name__ == '__main__':
     app.debug = True
     app.secret_key = 'secret123'
