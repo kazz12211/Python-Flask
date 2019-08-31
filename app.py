@@ -179,6 +179,26 @@ def add_article():
     return render_template('add_article.html', form = form)
 
 
+@app.route('/edit_article/<string:id>', methods=['GET', 'POST'])
+@is_logged_in
+def edit_article(id):
+    article = db.session.query(Article).filter(Article.id == id).one()
+
+    form = ArticleForm(request.form)
+
+    form.title.data = article.title
+    form.body.data = article.body
+
+    if request.method == 'POST' and form.validate():
+        article.title = request.form['title']
+        article.body = request.form['body']
+
+        db.session.commit()
+        flash('Article updated', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('edit_article.html', form = form)
+
+
 if __name__ == '__main__':
     app.debug = True
     app.secret_key = 'secret123'
