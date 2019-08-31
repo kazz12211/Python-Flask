@@ -209,6 +209,14 @@ def delete_article(id):
     return redirect(url_for('dashboard'))
 
 
+def format_datetime(dt, format='%Y-%m-%d %H:%M'):
+    formatted = ''
+    if dt is not None:
+        formatted = dt.strftime(format)
+    return formatted
+
+app.jinja_env.filters['datetime'] = format_datetime
+
 if __name__ == '__main__':
     app.debug = True
     app.secret_key = 'secret123'
